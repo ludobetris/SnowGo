@@ -584,7 +584,7 @@
                     if (isDriveMode && selectedTrackerId === deviceId) {
                         map.easeTo({
                             center: coords,
-                            bearing: -trackerMarkers[deviceId].heading,
+                            bearing: trackerMarkers[deviceId].heading,
                             pitch: 60,
                             zoom: 19,
                             duration: 1000

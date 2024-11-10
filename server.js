@@ -109,6 +109,6 @@ app.get('/api/drawings', (req, res) => {
 });
 
 // Démarrer le serveur
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`Serveur en écoute sur http://localhost:${PORT}`);
 });

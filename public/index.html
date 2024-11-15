@@ -754,26 +754,33 @@
 
             // Fonction pour afficher les trackers sur la carte
             function displayTrackers(trackers) {
-                // Filtrer les trackers pour n'inclure que ceux avec "Neige" dans le champ contact
+                // Filtrer les trackers dont le champ contact contient "Neige"
                 const filteredTrackers = trackers.filter(track => 
-                    track.device && 
-                    track.device.contact && 
-                    track.device.contact.includes("Neige")
+                    track.device.contact && track.device.contact.includes("Neige")
                 );
 
-                // Extraire les devices uniques des trackers filtrés
+                // Supprimer les marqueurs des trackers qui ne sont plus dans la liste filtrée
+                Object.keys(trackerMarkers).forEach(deviceId => {
+                    if (!filteredTrackers.some(track => track.device.id === parseInt(deviceId))) {
+                        trackerMarkers[deviceId].remove();
+                        delete trackerMarkers[deviceId];
+                        removeTrackerTrace(parseInt(deviceId));
+                    }
+                });
+
+                // Extraire les devices uniques à partir des trackers filtrés
                 const devicesMap = {};
                 filteredTrackers.forEach(track => {
-                    if (!devicesMap[track.device.id]) {
+                    if (track.device && !devicesMap[track.device.id]) {
                         devicesMap[track.device.id] = track.device;
                     }
                 });
                 trackersData = Object.values(devicesMap);
 
-                // Mettre à jour le menu déroulant
+                // Mettre à jour le menu déroulant avec les trackers filtrés
                 updateTrackerSelect();
 
-                // Parcourir les trackers filtrés pour les afficher sur la carte
+                // Itérer sur les trackers filtrés pour les afficher sur la carte
                 filteredTrackers.forEach(track => {
                     const device = track.device;
                     if (device) {
@@ -784,12 +791,12 @@
                         const now = Date.now();
                         lastUpdateTime[deviceId] = now;
 
-                        // Initialiser la position précédente
+                        // Initialiser la position précédente si nécessaire
                         if (!lastPositions[deviceId]) {
                             lastPositions[deviceId] = coords;
                         }
 
-                        // Mettre à jour le marqueur du tracker avec interpolation
+                        // Mettre à jour ou créer le marqueur du tracker
                         if (trackerMarkers[deviceId]) {
                             animateMarker(deviceId, lastPositions[deviceId], coords, 1000);
                         } else {

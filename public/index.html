@@ -198,8 +198,9 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.2/mapbox-gl-draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <script>
-        // Variables pour la gestion des accès
+        // Variables globales pour la gestion des accès et des dessins
         let userRole = null; // 'admin' ou 'user'
+        let draw; // Déclarer 'draw' dans une portée globale
 
         // Fonction de gestion du login
         document.getElementById('loginForm').addEventListener('submit', function(e) {
@@ -225,10 +226,11 @@
             // Désactiver le bouton Valider la zone
             document.getElementById('validateZone').style.display = 'none';
             // Désactiver les contrôles de dessin
-            draw.deleteAll();
-            draw.changeMode('simple_select');
+            if (draw) {
+                draw.deleteAll();
+                draw.changeMode('simple_select');
+            }
             // Masquer les options de dessin si présentes
-            // Si vous avez des boutons spécifiques pour créer des lignes et polygones, vous devriez les cacher ici
             // Exemple :
             // document.getElementById('createPolygonButton').style.display = 'none';
             // document.getElementById('createLineButton').style.display = 'none';
@@ -256,7 +258,7 @@
             map.addControl(new mapboxgl.NavigationControl());
 
             // Initialiser Mapbox Draw sans modifier les styles par défaut
-            var draw = new MapboxDraw({
+            draw = new MapboxDraw({
                 displayControlsDefault: false,
                 controls: {
                     polygon: userRole === 'admin' ? true : false,
@@ -287,7 +289,9 @@
                         return feature.geometry.type === 'Polygon';
                     })
                 };
-                map.getSource('draw-polygons').setData(polygons);
+                if (map.getSource('draw-polygons')) {
+                    map.getSource('draw-polygons').setData(polygons);
+                }
                 addPolygonLabels(); // Mettre à jour les étiquettes
             }
 
@@ -300,7 +304,9 @@
                         return feature.geometry.type === 'LineString';
                     })
                 };
-                map.getSource('draw-lines').setData(lines);
+                if (map.getSource('draw-lines')) {
+                    map.getSource('draw-lines').setData(lines);
+                }
             }
 
             // Charger les données des trackers au chargement de la carte
@@ -746,6 +752,7 @@
                         throw new Error('Network response was not ok');
                     }
                     const trackers = await response.json();
+                    console.log('Trackers reçus:', trackers); // Pour le débogage
                     displayTrackers(trackers);
                 } catch (error) {
                     console.error('Erreur lors de la récupération des données des trackers:', error);
@@ -753,107 +760,101 @@
             }
 
             // Fonction pour afficher les trackers sur la carte
-            function displayTrackers(trackers) {
-                // *** Début de la modification pour filtrer les trackers avec "neige" dans le champ contact ***
-                const filteredTrackers = trackers.filter(track => 
-                    track.device &&
-                    track.device.contact &&
-                    track.device.contact.toLowerCase().includes('neige')
-                );
-                // *** Fin de la modification ***
+            async function displayTrackers(trackers) {
+                console.log('Affichage des trackers:', trackers); // Pour le débogage
 
-                // Extraire les devices uniques
-                const devicesMap = {};
-                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
-                    if (track.device && !devicesMap[track.device.id]) {
-                        devicesMap[track.device.id] = track.device;
-                    }
-                });
-                trackersData = Object.values(devicesMap);
+                // Filtrer les dispositifs avec "Neige" dans le champ contact
+                const filteredTrackers = trackers.filter(track => 
+                    track.contact && track.contact.toLowerCase() === 'neige'
+                );
+
+                console.log('Trackers filtrés (contact = "neige"):', filteredTrackers); // Pour le débogage
+
+                // Extraire les devices uniques (si nécessaire)
+                // Dans votre structure, chaque tracker semble représenter un device
+                trackersData = filteredTrackers;
 
                 // Mettre à jour le menu déroulant
                 updateTrackerSelect();
 
-                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
-                    const device = track.device;
-                    if (device) {
-                        // Assurez-vous que track contient les champs longitude et latitude
-                        // Si ce n'est pas le cas, ajustez en fonction de votre structure de données
-                        const coords = [track.longitude, track.latitude];
-                        if (!coords || coords.length !== 2) {
-                            console.warn(`Coordonnées invalides pour le tracker ID: ${device.id}`);
-                            return;
-                        }
+                for (const track of filteredTrackers) {
+                    // Vérifier si les coordonnées sont disponibles
+                    // Si les coordonnées ne sont pas directement disponibles, vous devrez les obtenir via positionId
+                    // Supposons que track.latitude et track.longitude sont disponibles
+                    const coords = [track.longitude, track.latitude];
+                    if (!coords || coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
+                        console.warn(`Coordonnées invalides pour le tracker ID: ${track.id}`);
+                        continue;
+                    }
 
-                        const deviceId = device.id;
+                    const deviceId = track.id;
 
-                        // Enregistrer le temps de mise à jour
-                        const now = Date.now();
-                        lastUpdateTime[deviceId] = now;
+                    // Enregistrer le temps de mise à jour
+                    const now = Date.now();
+                    lastUpdateTime[deviceId] = now;
 
-                        // Initialiser la position précédente
-                        if (!lastPositions[deviceId]) {
-                            lastPositions[deviceId] = coords;
-                        }
-
-                        // Mettre à jour le marqueur du tracker avec interpolation
-                        if (trackerMarkers[deviceId]) {
-                            animateMarker(deviceId, lastPositions[deviceId], coords, 1000);
-                        } else {
-                            const el = document.createElement('div');
-                            el.className = 'custom-marker';
-
-                            const label = document.createElement('div');
-                            label.className = 'marker-label';
-                            label.textContent = device.name;
-                            el.appendChild(label);
-
-                            const marker = new mapboxgl.Marker(el)
-                                .setLngLat(coords)
-                                .addTo(map);
-
-                            trackerMarkers[deviceId] = marker;
-                        }
-
-                        // Mettre à jour la position précédente
+                    // Initialiser la position précédente
+                    if (!lastPositions[deviceId]) {
                         lastPositions[deviceId] = coords;
+                    }
 
-                        // Enregistrer la position pour la trace si active
-                        if (isTraceActive && selectedTrackerId === deviceId) {
-                            if (!trackerTraces[deviceId]) {
-                                trackerTraces[deviceId] = [];
-                            }
+                    // Mettre à jour le marqueur du tracker avec interpolation
+                    if (trackerMarkers[deviceId]) {
+                        animateMarker(deviceId, lastPositions[deviceId], coords, 1000);
+                    } else {
+                        const el = document.createElement('div');
+                        el.className = 'custom-marker';
 
-                            // Vérifier la distance avec le dernier point
-                            const lastTraceCoords = trackerTraces[deviceId][trackerTraces[deviceId].length - 1];
-                            const distance = lastTraceCoords ? turf.distance(turf.point(lastTraceCoords), turf.point(coords)) * 1000 : Infinity;
+                        const label = document.createElement('div');
+                        label.className = 'marker-label';
+                        label.textContent = track.name;
+                        el.appendChild(label);
 
-                            // Vérifier le temps écoulé depuis le dernier point
-                            const timeSinceLastPoint = lastTraceCoords ? now - lastUpdateTime[deviceId] : Infinity;
+                        const marker = new mapboxgl.Marker(el)
+                            .setLngLat(coords)
+                            .addTo(map);
 
-                            if (distance > 10 || timeSinceLastPoint > 15 * 60 * 1000) {
-                                trackerTraces[deviceId].push(coords);
-                                // Mettre à jour la trace du tracker
-                                updateTrackerTrace(deviceId);
-                            }
+                        trackerMarkers[deviceId] = marker;
+                    }
+
+                    // Mettre à jour la position précédente
+                    lastPositions[deviceId] = coords;
+
+                    // Enregistrer la position pour la trace si active
+                    if (isTraceActive && selectedTrackerId === deviceId) {
+                        if (!trackerTraces[deviceId]) {
+                            trackerTraces[deviceId] = [];
                         }
 
-                        // Enregistrer le cap pour l'orientation
-                        trackerMarkers[deviceId].heading = track.course || 0;
+                        // Vérifier la distance avec le dernier point
+                        const lastTraceCoords = trackerTraces[deviceId][trackerTraces[deviceId].length - 1];
+                        const distance = lastTraceCoords ? turf.distance(turf.point(lastTraceCoords), turf.point(coords)) * 1000 : Infinity;
 
-                        // Si le mode conduite est activé et que le tracker est sélectionné
-                        if (isDriveMode && selectedTrackerId === deviceId) {
-                            map.easeTo({
-                                center: coords,
-                                bearing: trackerMarkers[deviceId].heading,
-                                pitch: 60,
-                                zoom: 19,
-                                duration: 1000,
-                                essential: true
-                            });
+                        // Vérifier le temps écoulé depuis le dernier point
+                        const timeSinceLastPoint = lastTraceCoords ? now - lastUpdateTime[deviceId] : Infinity;
+
+                        if (distance > 10 || timeSinceLastPoint > 15 * 60 * 1000) {
+                            trackerTraces[deviceId].push(coords);
+                            // Mettre à jour la trace du tracker
+                            updateTrackerTrace(deviceId);
                         }
                     }
-                });
+
+                    // Enregistrer le cap pour l'orientation
+                    trackerMarkers[deviceId].heading = track.course || 0;
+
+                    // Si le mode conduite est activé et que le tracker est sélectionné
+                    if (isDriveMode && selectedTrackerId === deviceId) {
+                        map.easeTo({
+                            center: coords,
+                            bearing: trackerMarkers[deviceId].heading,
+                            pitch: 60,
+                            zoom: 19,
+                            duration: 1000,
+                            essential: true
+                        });
+                    }
+                }
             }
 
             // Fonction pour animer le marqueur entre deux positions
@@ -997,7 +998,6 @@
                     reAddCustomLayers();
                 });
             });
-        }
-    </script>
-</body>
-</html>
+        </script>
+    </body>
+    </html>

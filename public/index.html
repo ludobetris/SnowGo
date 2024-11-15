@@ -746,7 +746,6 @@
                         throw new Error('Network response was not ok');
                     }
                     const trackers = await response.json();
-                    console.log('Données des trackers reçues:', trackers); // Log ajouté
                     displayTrackers(trackers);
                 } catch (error) {
                     console.error('Erreur lors de la récupération des données des trackers:', error);
@@ -755,33 +754,21 @@
 
             // Fonction pour afficher les trackers sur la carte
             function displayTrackers(trackers) {
-                console.log('Trackers avant filtrage:', trackers); // Log des données brutes
-
-                // MODIFICATION: Filtrer les trackers dont le champ contact contient "Neige" (insensible à la casse)
-                const filteredTrackers = trackers.filter(track => 
-                    typeof track.contact === 'string' &&
-                    track.contact.toLowerCase().includes("neige")
-                );
-
-                console.log('Trackers après filtrage:', filteredTrackers); // Log des données filtrées
-
                 // Extraire les devices uniques
                 const devicesMap = {};
-                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
-                    if (track && !devicesMap[track.id]) { // Ajuster selon l'ID
-                        devicesMap[track.id] = track;
+                trackers.forEach(track => {
+                    if (track.device && !devicesMap[track.device.id]) {
+                        devicesMap[track.device.id] = track.device;
                     }
                 });
                 trackersData = Object.values(devicesMap);
 
-                console.log('Devices uniques après filtrage:', trackersData); // Log des devices uniques
-
                 // Mettre à jour le menu déroulant
                 updateTrackerSelect();
 
-                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
-                    const device = track;
-                    if (device) { // Directement utiliser l'objet device
+                trackers.forEach(track => {
+                    const device = track.device;
+                    if (device) {
                         const coords = [track.longitude, track.latitude];
                         const deviceId = device.id;
 
@@ -995,6 +982,7 @@
                     reAddCustomLayers();
                 });
             });
-        </script>
-    </body>
+        }
+    </script>
+</body>
 </html>

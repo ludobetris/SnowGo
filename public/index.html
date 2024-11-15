@@ -22,7 +22,7 @@
             bottom: 0;
             width: 100%;
             height: 100%;
-            display: hidden; /* Masqué par défaut, affiché après connexion */
+            display: none; /* Masqué par défaut, affiché après connexion */
         }
         /* Styles pour les boutons */
         #toggleView, #centerOnTracker, #validateZone, #trackerSelect, #toggleTrace, #driveModeButton, #satelliteToggleButton {
@@ -754,10 +754,17 @@
 
             // Fonction pour afficher les trackers sur la carte
             function displayTrackers(trackers) {
-                // Extraire les devices uniques
+                // Filtrer les trackers pour n'inclure que ceux avec "Neige" dans le champ contact
+                const filteredTrackers = trackers.filter(track => 
+                    track.device && 
+                    track.device.contact && 
+                    track.device.contact.includes("Neige")
+                );
+
+                // Extraire les devices uniques des trackers filtrés
                 const devicesMap = {};
-                trackers.forEach(track => {
-                    if (track.device && !devicesMap[track.device.id]) {
+                filteredTrackers.forEach(track => {
+                    if (!devicesMap[track.device.id]) {
                         devicesMap[track.device.id] = track.device;
                     }
                 });
@@ -766,7 +773,8 @@
                 // Mettre à jour le menu déroulant
                 updateTrackerSelect();
 
-                trackers.forEach(track => {
+                // Parcourir les trackers filtrés pour les afficher sur la carte
+                filteredTrackers.forEach(track => {
                     const device = track.device;
                     if (device) {
                         const coords = [track.longitude, track.latitude];

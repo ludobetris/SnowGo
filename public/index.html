@@ -8,165 +8,8 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
     <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.2/mapbox-gl-draw.css" rel="stylesheet">
     <style>
-        /* Styles pour la page et la carte */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            font-family: Arial, sans-serif;
-        }
-        #map {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            width: 100%;
-            height: 100%;
-            display: hidden; /* Masqué par défaut, affiché après connexion */
-        }
-        /* Styles pour les boutons */
-        #toggleView, #centerOnTracker, #validateZone, #trackerSelect, #toggleTrace, #driveModeButton, #satelliteToggleButton {
-            position: absolute;
-            z-index: 2;
-            padding: 10px;
-            background: white;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-            border-radius: 5px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-        }
-        #toggleView {
-            top: 10px;
-            left: 10px;
-        }
-        #centerOnTracker {
-            top: 10px;
-            left: 110px;
-        }
-        #trackerSelect {
-            top: 10px;
-            left: 210px;
-            padding: 8px;
-            border-radius: 5px;
-        }
-        /* Nouveau bouton driveModeButton */
-        #driveModeButton {
-            bottom: 70px;
-            right: 10px;
-            width: 50px;
-            height: 50px;
-            background-color: white;
-            border-radius: 50%;
-            background-image: url('https://github.com/ludobetris/cartesmtp/raw/main/icone_conduite2-removebg-preview.png');
-            background-size: 60%;
-            background-repeat: no-repeat;
-            background-position: center;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-        }
-        /* Nouveau bouton satelliteToggleButton */
-        #satelliteToggleButton {
-            bottom: 10px; /* Positionné en bas à gauche */
-            left: 10px;
-            width: 120px;
-            height: 50px; /* Même hauteur que le bouton START */
-            background-color: #f0f0f0;
-            color: #333;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 5px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        /* Style pour les boutons START et Valider la zone */
-        #validateZone, #toggleTrace {
-            background-color: green;
-            color: white;
-            width: 120px;
-            height: 50px;
-            font-size: 16px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-        }
-        #validateZone {
-            bottom: 130px; /* Position ajustée pour empiler les boutons */
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        #toggleTrace {
-            bottom: 70px;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-        /* Style pour les marqueurs */
-        .custom-marker {
-            background-image: url('https://github.com/ludobetris/cartesmtp/raw/main/IMG_4473.PNG');
-            background-size: cover;
-            width: 50px;
-            height: 50px;
-            border-radius: 0%;
-        }
-        .marker-label, .polygon-label {
-            position: absolute;
-            top: -20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-size: 10px;
-            font-weight: bold;
-            white-space: nowrap;
-        }
-        /* Style pour le curseur en mode sélection */
-        .mapboxgl-canvas.cursor-pointer {
-            cursor: pointer;
-        }
-        /* Styles pour le formulaire de login */
-        #loginOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 3;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #loginForm {
-            background-color: white;
-            padding: 20px 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-            text-align: center;
-        }
-        #loginForm h2 {
-            margin-bottom: 20px;
-        }
-        #loginForm input[type="password"] {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        #loginForm button {
-            padding: 10px 20px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        #loginForm button:hover {
-            background-color: #0056b3;
-        }
+        /* Vos styles existants... */
+        /* ... */
     </style>
 </head>
 <body>
@@ -198,9 +41,8 @@
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.2/mapbox-gl-draw.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
     <script>
-        // Variables globales pour la gestion des accès et des dessins
+        // Variables pour la gestion des accès
         let userRole = null; // 'admin' ou 'user'
-        let draw; // Déclarer 'draw' dans une portée globale
 
         // Fonction de gestion du login
         document.getElementById('loginForm').addEventListener('submit', function(e) {
@@ -226,11 +68,10 @@
             // Désactiver le bouton Valider la zone
             document.getElementById('validateZone').style.display = 'none';
             // Désactiver les contrôles de dessin
-            if (draw) {
-                draw.deleteAll();
-                draw.changeMode('simple_select');
-            }
+            draw.deleteAll();
+            draw.changeMode('simple_select');
             // Masquer les options de dessin si présentes
+            // Si vous avez des boutons spécifiques pour créer des lignes et polygones, vous devriez les cacher ici
             // Exemple :
             // document.getElementById('createPolygonButton').style.display = 'none';
             // document.getElementById('createLineButton').style.display = 'none';
@@ -258,7 +99,7 @@
             map.addControl(new mapboxgl.NavigationControl());
 
             // Initialiser Mapbox Draw sans modifier les styles par défaut
-            draw = new MapboxDraw({
+            var draw = new MapboxDraw({
                 displayControlsDefault: false,
                 controls: {
                     polygon: userRole === 'admin' ? true : false,
@@ -289,9 +130,7 @@
                         return feature.geometry.type === 'Polygon';
                     })
                 };
-                if (map.getSource('draw-polygons')) {
-                    map.getSource('draw-polygons').setData(polygons);
-                }
+                map.getSource('draw-polygons').setData(polygons);
                 addPolygonLabels(); // Mettre à jour les étiquettes
             }
 
@@ -304,9 +143,7 @@
                         return feature.geometry.type === 'LineString';
                     })
                 };
-                if (map.getSource('draw-lines')) {
-                    map.getSource('draw-lines').setData(lines);
-                }
+                map.getSource('draw-lines').setData(lines);
             }
 
             // Charger les données des trackers au chargement de la carte
@@ -752,7 +589,6 @@
                         throw new Error('Network response was not ok');
                     }
                     const trackers = await response.json();
-                    console.log('Trackers reçus:', trackers); // Pour le débogage
                     displayTrackers(trackers);
                 } catch (error) {
                     console.error('Erreur lors de la récupération des données des trackers:', error);
@@ -760,101 +596,104 @@
             }
 
             // Fonction pour afficher les trackers sur la carte
-            async function displayTrackers(trackers) {
-                console.log('Affichage des trackers:', trackers); // Pour le débogage
+            function displayTrackers(trackers) {
+                // Filtrer les trackers qui sont en ligne
+                const onlineTrackers = trackers.filter(track => track.online === true);
 
-                // Filtrer les dispositifs avec "Neige" dans le champ contact
-                const filteredTrackers = trackers.filter(track => 
-                    track.contact && track.contact.toLowerCase() === 'neige'
-                );
-
-                console.log('Trackers filtrés (contact = "neige"):', filteredTrackers); // Pour le débogage
-
-                // Extraire les devices uniques (si nécessaire)
-                // Dans votre structure, chaque tracker semble représenter un device
-                trackersData = filteredTrackers;
+                // Extraire les devices uniques des trackers en ligne
+                const devicesMap = {};
+                onlineTrackers.forEach(track => {
+                    if (track.device && !devicesMap[track.device.id]) {
+                        devicesMap[track.device.id] = track.device;
+                    }
+                });
+                trackersData = Object.values(devicesMap);
 
                 // Mettre à jour le menu déroulant
                 updateTrackerSelect();
 
-                for (const track of filteredTrackers) {
-                    // Vérifier si les coordonnées sont disponibles
-                    // Si les coordonnées ne sont pas directement disponibles, vous devrez les obtenir via positionId
-                    // Supposons que track.latitude et track.longitude sont disponibles
-                    const coords = [track.longitude, track.latitude];
-                    if (!coords || coords.length !== 2 || isNaN(coords[0]) || isNaN(coords[1])) {
-                        console.warn(`Coordonnées invalides pour le tracker ID: ${track.id}`);
-                        continue;
+                // Supprimer les marqueurs des trackers qui ne sont plus en ligne
+                Object.keys(trackerMarkers).forEach(deviceId => {
+                    if (!devicesMap[deviceId]) {
+                        trackerMarkers[deviceId].remove();
+                        delete trackerMarkers[deviceId];
+                        removeTrackerTrace(parseInt(deviceId));
                     }
+                });
 
-                    const deviceId = track.id;
+                onlineTrackers.forEach(track => {
+                    const device = track.device;
+                    if (device) {
+                        const coords = [track.longitude, track.latitude];
+                        const deviceId = device.id;
 
-                    // Enregistrer le temps de mise à jour
-                    const now = Date.now();
-                    lastUpdateTime[deviceId] = now;
+                        // Enregistrer le temps de mise à jour
+                        const now = Date.now();
+                        lastUpdateTime[deviceId] = now;
 
-                    // Initialiser la position précédente
-                    if (!lastPositions[deviceId]) {
+                        // Initialiser la position précédente
+                        if (!lastPositions[deviceId]) {
+                            lastPositions[deviceId] = coords;
+                        }
+
+                        // Mettre à jour le marqueur du tracker avec interpolation
+                        if (trackerMarkers[deviceId]) {
+                            animateMarker(deviceId, lastPositions[deviceId], coords, 1000);
+                        } else {
+                            const el = document.createElement('div');
+                            el.className = 'custom-marker';
+
+                            const label = document.createElement('div');
+                            label.className = 'marker-label';
+                            label.textContent = device.name;
+                            el.appendChild(label);
+
+                            const marker = new mapboxgl.Marker(el)
+                                .setLngLat(coords)
+                                .addTo(map);
+
+                            trackerMarkers[deviceId] = marker;
+                        }
+
+                        // Mettre à jour la position précédente
                         lastPositions[deviceId] = coords;
-                    }
 
-                    // Mettre à jour le marqueur du tracker avec interpolation
-                    if (trackerMarkers[deviceId]) {
-                        animateMarker(deviceId, lastPositions[deviceId], coords, 1000);
-                    } else {
-                        const el = document.createElement('div');
-                        el.className = 'custom-marker';
+                        // Enregistrer la direction pour l'orientation
+                        trackerMarkers[deviceId].heading = track.course || 0;
 
-                        const label = document.createElement('div');
-                        label.className = 'marker-label';
-                        label.textContent = track.name;
-                        el.appendChild(label);
-
-                        const marker = new mapboxgl.Marker(el)
-                            .setLngLat(coords)
-                            .addTo(map);
-
-                        trackerMarkers[deviceId] = marker;
-                    }
-
-                    // Mettre à jour la position précédente
-                    lastPositions[deviceId] = coords;
-
-                    // Enregistrer la position pour la trace si active
-                    if (isTraceActive && selectedTrackerId === deviceId) {
-                        if (!trackerTraces[deviceId]) {
-                            trackerTraces[deviceId] = [];
+                        // Si le mode conduite est activé et que le tracker est sélectionné
+                        if (isDriveMode && selectedTrackerId === deviceId) {
+                            map.easeTo({
+                                center: coords,
+                                bearing: trackerMarkers[deviceId].heading,
+                                pitch: 60,
+                                zoom: 19,
+                                duration: 1000,
+                                essential: true
+                            });
                         }
 
-                        // Vérifier la distance avec le dernier point
-                        const lastTraceCoords = trackerTraces[deviceId][trackerTraces[deviceId].length - 1];
-                        const distance = lastTraceCoords ? turf.distance(turf.point(lastTraceCoords), turf.point(coords)) * 1000 : Infinity;
+                        // Enregistrer la position pour la trace si active
+                        if (isTraceActive && selectedTrackerId === deviceId) {
+                            if (!trackerTraces[deviceId]) {
+                                trackerTraces[deviceId] = [];
+                            }
 
-                        // Vérifier le temps écoulé depuis le dernier point
-                        const timeSinceLastPoint = lastTraceCoords ? now - lastUpdateTime[deviceId] : Infinity;
+                            // Vérifier la distance avec le dernier point
+                            const lastTraceCoords = trackerTraces[deviceId][trackerTraces[deviceId].length - 1];
+                            const distance = lastTraceCoords ? turf.distance(turf.point(lastTraceCoords), turf.point(coords)) * 1000 : Infinity;
 
-                        if (distance > 10 || timeSinceLastPoint > 15 * 60 * 1000) {
-                            trackerTraces[deviceId].push(coords);
-                            // Mettre à jour la trace du tracker
-                            updateTrackerTrace(deviceId);
+                            // Vérifier le temps écoulé depuis le dernier point
+                            const timeSinceLastPoint = lastTraceCoords ? now - lastUpdateTime[deviceId] : Infinity;
+
+                            if (distance > 10 || timeSinceLastPoint > 15 * 60 * 1000) {
+                                trackerTraces[deviceId].push(coords);
+                                // Mettre à jour la trace du tracker
+                                updateTrackerTrace(deviceId);
+                            }
                         }
                     }
-
-                    // Enregistrer le cap pour l'orientation
-                    trackerMarkers[deviceId].heading = track.course || 0;
-
-                    // Si le mode conduite est activé et que le tracker est sélectionné
-                    if (isDriveMode && selectedTrackerId === deviceId) {
-                        map.easeTo({
-                            center: coords,
-                            bearing: trackerMarkers[deviceId].heading,
-                            pitch: 60,
-                            zoom: 19,
-                            duration: 1000,
-                            essential: true
-                        });
-                    }
-                }
+                });
             }
 
             // Fonction pour animer le marqueur entre deux positions
@@ -998,6 +837,7 @@
                     reAddCustomLayers();
                 });
             });
-        </script>
-    </body>
-    </html>
+        }
+    </script>
+</body>
+</html>

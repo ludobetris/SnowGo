@@ -759,10 +759,8 @@
 
                 // MODIFICATION: Filtrer les trackers dont le champ contact contient "Neige" (insensible à la casse)
                 const filteredTrackers = trackers.filter(track => 
-                    track.device && 
-                    track.device.attributes && // Ajuster selon la structure
-                    typeof track.device.attributes.contact === 'string' &&
-                    track.device.attributes.contact.toLowerCase().includes("neige")
+                    typeof track.contact === 'string' &&
+                    track.contact.toLowerCase().includes("neige")
                 );
 
                 console.log('Trackers après filtrage:', filteredTrackers); // Log des données filtrées
@@ -770,8 +768,8 @@
                 // Extraire les devices uniques
                 const devicesMap = {};
                 filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
-                    if (track.device && !devicesMap[track.device.id]) {
-                        devicesMap[track.device.id] = track.device;
+                    if (track && !devicesMap[track.id]) { // Ajuster selon l'ID
+                        devicesMap[track.id] = track;
                     }
                 });
                 trackersData = Object.values(devicesMap);
@@ -782,8 +780,8 @@
                 updateTrackerSelect();
 
                 filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
-                    const device = track.device;
-                    if (device) {
+                    const device = track;
+                    if (device) { // Directement utiliser l'objet device
                         const coords = [track.longitude, track.latitude];
                         const deviceId = device.id;
 
@@ -997,7 +995,6 @@
                     reAddCustomLayers();
                 });
             });
-        }
-    </script>
-</body>
+        </script>
+    </body>
 </html>

@@ -757,7 +757,7 @@
                 // Extraire les devices uniques
                 const devicesMap = {};
                 trackers.forEach(track => {
-                    if (track.device && !devicesMap[track.device.id]) {
+                    if (track.device && track.device.model === "Neige" && !devicesMap[track.device.id]) {
                         devicesMap[track.device.id] = track.device;
                     }
                 });
@@ -768,7 +768,7 @@
 
                 trackers.forEach(track => {
                     const device = track.device;
-                    if (device) {
+                    if (device && device.model === "Neige") {
                         const coords = [track.longitude, track.latitude];
                         const deviceId = device.id;
 

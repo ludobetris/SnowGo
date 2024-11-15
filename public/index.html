@@ -200,6 +200,7 @@
     <script>
         // Variables pour la gestion des accès
         let userRole = null; // 'admin' ou 'user'
+        let draw; // Déclaration de MapboxDraw globale pour accéder dans restrictUserAccess
 
         // Fonction de gestion du login
         document.getElementById('loginForm').addEventListener('submit', function(e) {
@@ -225,10 +226,11 @@
             // Désactiver le bouton Valider la zone
             document.getElementById('validateZone').style.display = 'none';
             // Désactiver les contrôles de dessin
-            draw.deleteAll();
-            draw.changeMode('simple_select');
+            if (draw) {
+                draw.deleteAll();
+                draw.changeMode('simple_select');
+            }
             // Masquer les options de dessin si présentes
-            // Si vous avez des boutons spécifiques pour créer des lignes et polygones, vous devriez les cacher ici
             // Exemple :
             // document.getElementById('createPolygonButton').style.display = 'none';
             // document.getElementById('createLineButton').style.display = 'none';
@@ -256,7 +258,7 @@
             map.addControl(new mapboxgl.NavigationControl());
 
             // Initialiser Mapbox Draw sans modifier les styles par défaut
-            var draw = new MapboxDraw({
+            draw = new MapboxDraw({
                 displayControlsDefault: false,
                 controls: {
                     polygon: userRole === 'admin' ? true : false,
@@ -364,6 +366,15 @@
                     paint: {
                         'line-color': '#0000ff', // Bleu
                         'line-width': 4 // Plus épais
+                    }
+                });
+
+                // Source pour les étiquettes des polygones (initialisée avec vide)
+                map.addSource('polygon-labels', {
+                    'type': 'geojson',
+                    'data': {
+                        'type': 'FeatureCollection',
+                        'features': []
                     }
                 });
 
@@ -509,8 +520,17 @@
                     });
                 }
 
-                // Couche pour les étiquettes des polygones
-                if (!map.getLayer('polygon-labels')) {
+                // Source pour les étiquettes des polygones (initialisée avec vide si non existante)
+                if (!map.getSource('polygon-labels')) {
+                    map.addSource('polygon-labels', {
+                        'type': 'geojson',
+                        'data': {
+                            'type': 'FeatureCollection',
+                            'features': []
+                        }
+                    });
+
+                    // Couche pour les étiquettes des polygones
                     map.addLayer({
                         'id': 'polygon-labels',
                         'type': 'symbol',
@@ -662,14 +682,6 @@
 
             // Fonction pour ajouter des étiquettes aux polygones
             function addPolygonLabels() {
-                // Supprimer l'ancienne couche et source
-                if (map.getLayer('polygon-labels')) {
-                    map.removeLayer('polygon-labels');
-                }
-                if (map.getSource('polygon-labels')) {
-                    map.removeSource('polygon-labels');
-                }
-
                 // Récupérer tous les polygones
                 const data = draw.getAll();
                 const polygons = data.features.filter(f => f.geometry.type === 'Polygon');
@@ -689,31 +701,16 @@
                         };
                     });
 
-                    // Ajouter la source et la couche pour les étiquettes
-                    map.addSource('polygon-labels', {
-                        'type': 'geojson',
-                        'data': {
-                            'type': 'FeatureCollection',
-                            'features': labels
-                        }
+                    // Mettre à jour la source 'polygon-labels' avec les nouvelles étiquettes
+                    map.getSource('polygon-labels').setData({
+                        'type': 'FeatureCollection',
+                        'features': labels
                     });
-
-                    map.addLayer({
-                        'id': 'polygon-labels',
-                        'type': 'symbol',
-                        'source': 'polygon-labels',
-                        'layout': {
-                            'text-field': ['get', 'name'],
-                            'text-font': ['Open Sans Bold'],
-                            'text-size': 12,
-                            'text-offset': [0, 0],
-                            'text-anchor': 'center'
-                        },
-                        'paint': {
-                            'text-color': '#ffffff',
-                            'text-halo-color': '#000000',
-                            'text-halo-width': 1
-                        }
+                } else {
+                    // Si aucun polygone, mettre une collection vide
+                    map.getSource('polygon-labels').setData({
+                        'type': 'FeatureCollection',
+                        'features': []
                     });
                 }
             }

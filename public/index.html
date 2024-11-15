@@ -8,8 +8,165 @@
     <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet">
     <link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.2/mapbox-gl-draw.css" rel="stylesheet">
     <style>
-        /* Vos styles existants... */
-        /* ... */
+        /* Styles pour la page et la carte */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            height: 100%;
+            display: hidden; /* Masqué par défaut, affiché après connexion */
+        }
+        /* Styles pour les boutons */
+        #toggleView, #centerOnTracker, #validateZone, #trackerSelect, #toggleTrace, #driveModeButton, #satelliteToggleButton {
+            position: absolute;
+            z-index: 2;
+            padding: 10px;
+            background: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        }
+        #toggleView {
+            top: 10px;
+            left: 10px;
+        }
+        #centerOnTracker {
+            top: 10px;
+            left: 110px;
+        }
+        #trackerSelect {
+            top: 10px;
+            left: 210px;
+            padding: 8px;
+            border-radius: 5px;
+        }
+        /* Nouveau bouton driveModeButton */
+        #driveModeButton {
+            bottom: 70px;
+            right: 10px;
+            width: 50px;
+            height: 50px;
+            background-color: white;
+            border-radius: 50%;
+            background-image: url('https://github.com/ludobetris/cartesmtp/raw/main/icone_conduite2-removebg-preview.png');
+            background-size: 60%;
+            background-repeat: no-repeat;
+            background-position: center;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        }
+        /* Nouveau bouton satelliteToggleButton */
+        #satelliteToggleButton {
+            bottom: 10px; /* Positionné en bas à gauche */
+            left: 10px;
+            width: 120px;
+            height: 50px; /* Même hauteur que le bouton START */
+            background-color: #f0f0f0;
+            color: #333;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        /* Style pour les boutons START et Valider la zone */
+        #validateZone, #toggleTrace {
+            background-color: green;
+            color: white;
+            width: 120px;
+            height: 50px;
+            font-size: 16px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+        #validateZone {
+            bottom: 130px; /* Position ajustée pour empiler les boutons */
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        #toggleTrace {
+            bottom: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        /* Style pour les marqueurs */
+        .custom-marker {
+            background-image: url('https://github.com/ludobetris/cartesmtp/raw/main/IMG_4473.PNG');
+            background-size: cover;
+            width: 50px;
+            height: 50px;
+            border-radius: 0%;
+        }
+        .marker-label, .polygon-label {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+        /* Style pour le curseur en mode sélection */
+        .mapboxgl-canvas.cursor-pointer {
+            cursor: pointer;
+        }
+        /* Styles pour le formulaire de login */
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #loginForm {
+            background-color: white;
+            padding: 20px 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            text-align: center;
+        }
+        #loginForm h2 {
+            margin-bottom: 20px;
+        }
+        #loginForm input[type="password"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #loginForm button {
+            padding: 10px 20px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        #loginForm button:hover {
+            background-color: #0056b3;
+        }
     </style>
 </head>
 <body>
@@ -597,13 +754,10 @@
 
             // Fonction pour afficher les trackers sur la carte
             function displayTrackers(trackers) {
-                // Filtrer les trackers qui sont en ligne
-                const onlineTrackers = trackers.filter(track => track.online === true);
-
-                // Extraire les devices uniques des trackers en ligne
+                // Extraire les devices uniques et en ligne
                 const devicesMap = {};
-                onlineTrackers.forEach(track => {
-                    if (track.device && !devicesMap[track.device.id]) {
+                trackers.forEach(track => {
+                    if (track.device && track.online && !devicesMap[track.device.id]) { // Filtrer les trackers en ligne
                         devicesMap[track.device.id] = track.device;
                     }
                 });
@@ -612,20 +766,10 @@
                 // Mettre à jour le menu déroulant
                 updateTrackerSelect();
 
-                // Supprimer les marqueurs des trackers qui ne sont plus en ligne
-                Object.keys(trackerMarkers).forEach(deviceId => {
-                    if (!devicesMap[deviceId]) {
-                        trackerMarkers[deviceId].remove();
-                        delete trackerMarkers[deviceId];
-                        removeTrackerTrace(parseInt(deviceId));
-                    }
-                });
-
-                onlineTrackers.forEach(track => {
-                    const device = track.device;
-                    if (device) {
+                trackers.forEach(track => {
+                    if (track.online && track.device) { // Traiter uniquement les trackers en ligne
                         const coords = [track.longitude, track.latitude];
-                        const deviceId = device.id;
+                        const deviceId = track.device.id;
 
                         // Enregistrer le temps de mise à jour
                         const now = Date.now();
@@ -658,21 +802,6 @@
                         // Mettre à jour la position précédente
                         lastPositions[deviceId] = coords;
 
-                        // Enregistrer la direction pour l'orientation
-                        trackerMarkers[deviceId].heading = track.course || 0;
-
-                        // Si le mode conduite est activé et que le tracker est sélectionné
-                        if (isDriveMode && selectedTrackerId === deviceId) {
-                            map.easeTo({
-                                center: coords,
-                                bearing: trackerMarkers[deviceId].heading,
-                                pitch: 60,
-                                zoom: 19,
-                                duration: 1000,
-                                essential: true
-                            });
-                        }
-
                         // Enregistrer la position pour la trace si active
                         if (isTraceActive && selectedTrackerId === deviceId) {
                             if (!trackerTraces[deviceId]) {
@@ -692,8 +821,32 @@
                                 updateTrackerTrace(deviceId);
                             }
                         }
+
+                        // Enregistrer le cap pour l'orientation
+                        trackerMarkers[deviceId].heading = track.course || 0;
+
+                        // Si le mode conduite est activé et que le tracker est sélectionné
+                        if (isDriveMode && selectedTrackerId === deviceId) {
+                            map.easeTo({
+                                center: coords,
+                                bearing: trackerMarkers[deviceId].heading,
+                                pitch: 60,
+                                zoom: 19,
+                                duration: 1000,
+                                essential: true
+                            });
+                        }
                     }
                 });
+
+                // Supprimer les marqueurs des trackers qui ne sont plus en ligne
+                for (const deviceId in trackerMarkers) {
+                    if (!devicesMap[deviceId]) {
+                        trackerMarkers[deviceId].remove();
+                        delete trackerMarkers[deviceId];
+                        delete trackerTraces[deviceId];
+                    }
+                }
             }
 
             // Fonction pour animer le marqueur entre deux positions

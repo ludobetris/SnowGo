@@ -22,23 +22,7 @@
             bottom: 0;
             width: 100%;
             height: 100%;
-            display: none; /* Masqué par défaut, affiché après connexion */
-        }
-        /* Styles pour les panneaux de filtres */
-        #filters {
-            position: absolute;
-            top: 10px;
-            left: 350px;
-            z-index: 2;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 5px;
-            max-height: 80%;
-            overflow-y: auto;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-        }
-        #filters h3 {
-            margin-top: 0;
+            display: hidden; /* Masqué par défaut, affiché après connexion */
         }
         /* Styles pour les boutons */
         #toggleView, #centerOnTracker, #validateZone, #trackerSelect, #toggleTrace, #driveModeButton, #satelliteToggleButton {
@@ -209,20 +193,6 @@
     <button id="toggleTrace">START</button>
     <!-- Nouveau bouton satelliteToggleButton -->
     <button id="satelliteToggleButton">Satellite</button>
-    <!-- Panneau de filtres -->
-    <div id="filters">
-        <h3>Filtres</h3>
-        <div id="group-list">
-            <h4>Groupes</h4>
-            <!-- Cases à cocher des groupes seront ajoutées ici -->
-        </div>
-        <div id="contact-filter">
-            <h4>Contact</h4>
-            <label>
-                <input type="checkbox" id="neigeFilter" /> Neige
-            </label>
-        </div>
-    </div>
     <!-- Inclure les scripts de Mapbox GL JS, Mapbox GL Draw et Turf.js -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.2/mapbox-gl-draw.js"></script>
@@ -231,9 +201,6 @@
         // Variables pour la gestion des accès
         let userRole = null; // 'admin' ou 'user'
 
-        // Variables pour Traccar API
-        const TRACCAR_AUTH = btoa('admin:admin'); // Remplacez par vos propres identifiants
-
         // Fonction de gestion du login
         document.getElementById('loginForm').addEventListener('submit', function(e) {
             e.preventDefault();
@@ -241,12 +208,12 @@
             if (password === 'admin') {
                 userRole = 'admin';
                 document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('map').style.display = 'block'; // Rendre la carte visible
+                document.getElementById('map').style.visibility = 'visible'; // Rendre la carte visible
                 initializeMap();
             } else if (password === '1234') {
                 userRole = 'user';
                 document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('map').style.display = 'block'; // Rendre la carte visible
+                document.getElementById('map').style.visibility = 'visible'; // Rendre la carte visible
                 initializeMap();
                 restrictUserAccess();
             } else {
@@ -267,15 +234,12 @@
             // document.getElementById('createLineButton').style.display = 'none';
         }
 
-        let map; // Déclarer la variable map en dehors de la fonction
-        let draw; // Déclarer la variable draw en dehors de la fonction
-
         function initializeMap() {
             // Remplacez 'VOTRE_ACCESS_TOKEN_MAPBOX' par votre propre token Mapbox
             mapboxgl.accessToken = 'pk.eyJ1IjoibHVkb2JldHJpcyIsImEiOiJjbTNhM3ljY3oxMXFxMmxzZmQwdm5tcWhpIn0.E22bDYSixD27MweKxToXyA';
 
             // Initialiser la carte
-            map = new mapboxgl.Map({
+            var map = new mapboxgl.Map({
                 container: 'map',
                 style: 'mapbox://styles/mapbox/streets-v12',
                 center: [7.4589, 46.2530], // Coordonnées du dépôt
@@ -285,11 +249,14 @@
                 antialias: true // Nécessaire pour les bâtiments 3D
             });
 
+            // Afficher la carte après initialisation
+            document.getElementById('map').style.display = 'block';
+
             // Ajouter les contrôles de navigation
             map.addControl(new mapboxgl.NavigationControl());
 
             // Initialiser Mapbox Draw sans modifier les styles par défaut
-            draw = new MapboxDraw({
+            var draw = new MapboxDraw({
                 displayControlsDefault: false,
                 controls: {
                     polygon: userRole === 'admin' ? true : false,
@@ -301,357 +268,15 @@
             map.addControl(draw);
 
             // Variables globales
-            let trackerMarkers = {}; // Dictionnaire des marqueurs de trackers
-            let trackerTraces = {}; // Dictionnaire des traces de trackers
-            let trackersData = []; // Liste des trackers disponibles
-            let selectedTrackerId = null; // ID du tracker sélectionné
-            let isTraceActive = false; // Indique si l'enregistrement de la trace est actif
-            let lastPositions = {}; // Dernières positions des trackers pour l'interpolation
-            let lastUpdateTime = {}; // Temps de la dernière mise à jour pour chaque tracker
-            let isDriveMode = false; // Indique si le mode conduite est activé
-            let isSatellite = false; // Indique si la vue satellite est active
-            let groups = []; // Liste des groupes
-            let groupIdToName = {}; // Mapping de groupId à nom de groupe
-
-            // Fonction pour obtenir les données des groupes, devices, et positions de Traccar
-            async function getTrackersData() {
-                try {
-                    // 1. Fetch Groups
-                    const groupsResponse = await fetch('https://demo2.traccar.org/api/groups', {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': 'Basic ' + TRACCAR_AUTH, // Utiliser la variable définie
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    const groupsData = await groupsResponse.json();
-                    console.log('Groupes reçus:', groupsData);
-                    groups = groupsData;
-                    groups.forEach(group => {
-                        groupIdToName[group.id] = group.name;
-                    });
-
-                    // 2. Fetch Devices
-                    const devicesResponse = await fetch('https://demo2.traccar.org/api/devices', {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': 'Basic ' + TRACCAR_AUTH, // Utiliser la variable définie
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    const devicesData = await devicesResponse.json();
-                    console.log('Devices reçus:', devicesData);
-                    const deviceIdToInfo = {};
-                    devicesData.forEach(device => {
-                        deviceIdToInfo[device.id] = {
-                            name: device.name || `Tracker ${device.id}`,
-                            group: device.groupId ? groupIdToName[device.groupId] || 'Autre' : 'Autre'
-                        };
-                    });
-
-                    // 3. Fetch Positions (Latest Positions)
-                    const positionsResponse = await fetch('https://demo2.traccar.org/api/positions', {
-                        method: 'GET',
-                        headers: {
-                            'Authorization': 'Basic ' + TRACCAR_AUTH, // Utiliser la variable définie
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    const positionsData = await positionsResponse.json();
-                    console.log('Positions reçues:', positionsData);
-
-                    // 4. Assign name and group from devices data
-                    trackers = positionsData.map(position => ({
-                        ...position,
-                        name: (deviceIdToInfo[position.deviceId] && deviceIdToInfo[position.deviceId].name) || `Tracker ${position.deviceId}`,
-                        group: (deviceIdToInfo[position.deviceId] && deviceIdToInfo[position.deviceId].group) || 'Autre',
-                        latitude: parseFloat(position.latitude),
-                        longitude: parseFloat(position.longitude),
-                        time: position.time // Assurez-vous que la propriété 'time' est présente
-                    }));
-
-                    // Filtrer les trackers dont le contact contient "Neige"
-                    const neigeTrackers = trackers.filter(track => 
-                        typeof track.contact === 'string' &&
-                        track.contact.toLowerCase().includes("neige")
-                    );
-                    console.log('Trackers avec contact "Neige":', neigeTrackers);
-
-                    // Mettre à jour trackersData avec les trackers filtrés par contact
-                    trackersData = neigeTrackers;
-
-                    displayGroupCheckboxes();
-                    populateTrackerSelect();
-                    updateMap();
-                    populateDepotList();
-                } catch (error) {
-                    console.error('Erreur lors de la récupération des données:', error);
-                    alert('Une erreur est survenue lors de la récupération des données des trackers.');
-                }
-            }
-
-            // Fonction pour afficher les cases à cocher des groupes
-            function displayGroupCheckboxes() {
-                const groupList = document.getElementById('group-list');
-                groupList.innerHTML = '<h4>Groupes</h4>'; // Réinitialiser le contenu
-
-                groups.forEach(group => {
-                    const label = document.createElement('label');
-                    label.style.display = 'block';
-                    label.style.marginBottom = '5px';
-                    label.innerHTML = `
-                        <input type="checkbox" class="group-checkbox" value="${group.id}" checked /> ${group.name}
-                    `;
-                    groupList.appendChild(label);
-                });
-
-                // Ajouter un écouteur d'événement pour les cases à cocher des groupes
-                const groupCheckboxes = document.querySelectorAll('.group-checkbox');
-                groupCheckboxes.forEach(checkbox => {
-                    checkbox.addEventListener('change', function() {
-                        updateMap();
-                    });
-                });
-
-                // Ajouter un écouteur d'événement pour la case à cocher du contact "Neige"
-                document.getElementById('neigeFilter').addEventListener('change', function() {
-                    updateMap();
-                });
-            }
-
-            // Fonction pour peupler le menu déroulant des trackers
-            function populateTrackerSelect() {
-                const select = document.getElementById('trackerSelect');
-                // Vider le menu déroulant
-                while (select.options.length > 1) {
-                    select.remove(1);
-                }
-
-                trackersData.forEach(tracker => {
-                    const option = document.createElement('option');
-                    option.value = tracker.id;
-                    option.textContent = tracker.name;
-                    select.appendChild(option);
-                });
-            }
-
-            // Fonction pour mettre à jour la carte en fonction des filtres
-            function updateMap() {
-                // Obtenir les groupes sélectionnés
-                const selectedGroups = Array.from(document.querySelectorAll('.group-checkbox:checked')).map(cb => parseInt(cb.value));
-
-                // Obtenir l'état de la case à cocher "Neige"
-                const neigeChecked = document.getElementById('neigeFilter').checked;
-
-                console.log('Groupes sélectionnés:', selectedGroups);
-                console.log('Filtre Neige activé:', neigeChecked);
-
-                // Filtrer les trackersData en fonction des groupes sélectionnés et du filtre "Neige"
-                const filteredTrackers = trackersData.filter(track => {
-                    const inGroup = selectedGroups.includes(track.groupId) || selectedGroups.length === 0;
-                    const hasNeigeContact = neigeChecked ? (typeof track.contact === 'string' && track.contact.toLowerCase().includes("neige")) : true;
-                    return inGroup && hasNeigeContact;
-                });
-
-                console.log('Trackers filtrés:', filteredTrackers);
-
-                // Supprimer les marqueurs existants
-                for (const id in trackerMarkers) {
-                    trackerMarkers[id].remove();
-                }
-                trackerMarkers = {};
-
-                // Supprimer les traces existantes
-                for (const id in trackerTraces) {
-                    removeTrackerTrace(id);
-                }
-                trackerTraces = {};
-
-                // Re-créer les marqueurs pour les trackers filtrés
-                filteredTrackers.forEach(track => {
-                    const deviceId = track.id;
-                    const coords = [track.longitude, track.latitude];
-
-                    // Créer le marqueur
-                    const el = document.createElement('div');
-                    el.className = 'custom-marker';
-
-                    const label = document.createElement('div');
-                    label.className = 'marker-label';
-                    label.textContent = track.name;
-                    el.appendChild(label);
-
-                    const marker = new mapboxgl.Marker(el)
-                        .setLngLat(coords)
-                        .addTo(map);
-
-                    // Ajouter le marqueur au dictionnaire
-                    trackerMarkers[deviceId] = marker;
-
-                    // Enregistrer la position précédente
-                    lastPositions[deviceId] = coords;
-
-                    // Enregistrer le cap pour l'orientation
-                    trackerMarkers[deviceId].heading = track.course || 0;
-                });
-            }
-
-            // Fonction pour centrer la carte sur un tracker sélectionné
-            function centerOnTracker() {
-                const select = document.getElementById('trackerSelect');
-                const selectedId = parseInt(select.value);
-                if (selectedId && trackerMarkers[selectedId]) {
-                    const marker = trackerMarkers[selectedId];
-                    const coords = marker.getLngLat();
-                    const heading = marker.heading || 0;
-                    map.flyTo({
-                        center: coords,
-                        zoom: 19, // Augmenté pour plus de zoom
-                        pitch: 60,
-                        bearing: -heading, // Orientation dans le sens du déplacement
-                        essential: true
-                    });
-                } else {
-                    alert("Aucun tracker sélectionné ou position inconnue.");
-                }
-            }
-
-            document.getElementById('centerOnTracker').addEventListener('click', centerOnTracker);
-
-            // Gestion du bouton de bascule de vue 2D/3D
-            document.getElementById('toggleView').addEventListener('click', function() {
-                const currentPitch = map.getPitch();
-                if (currentPitch === 0) {
-                    // Passer en vue 3D
-                    map.easeTo({ pitch: 60, duration: 1000 });
-                    map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
-                } else {
-                    // Passer en vue 2D
-                    map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
-                    map.setLayoutProperty('3d-buildings', 'visibility', 'none');
-                }
-            });
-
-            // Gestion du nouveau bouton "Mode Conduite"
-            document.getElementById('driveModeButton').addEventListener('click', function() {
-                isDriveMode = !isDriveMode;
-                const button = document.getElementById('driveModeButton');
-                if (isDriveMode) {
-                    button.style.backgroundColor = '#007BFF';
-                    centerOnTracker();
-                } else {
-                    button.style.backgroundColor = 'white';
-                }
-            });
-
-            // Gestion du bouton "Valider la zone"
-            document.getElementById('validateZone').addEventListener('click', function() {
-                const selectedFeatures = draw.getSelected();
-                if (selectedFeatures.features.length > 0) {
-                    const selectedPolygonId = selectedFeatures.features[0].id;
-                    const feature = draw.get(selectedPolygonId);
-                    const isCleared = feature.properties.user_isCleared || false;
-                    draw.setFeatureProperty(selectedPolygonId, 'user_isCleared', !isCleared);
-
-                    // Mettre à jour les polygones pour refléter les changements
-                    updatePolygons();
-                    saveDrawings();
-                } else {
-                    alert('Aucun polygone sélectionné.');
-                }
-            });
-
-            // Gestion du bouton START/STOP pour la trace
-            document.getElementById('toggleTrace').addEventListener('click', function() {
-                isTraceActive = !isTraceActive;
-                const button = document.getElementById('toggleTrace');
-                if (isTraceActive) {
-                    button.textContent = 'STOP';
-                    button.style.backgroundColor = 'red';
-                    // Réinitialiser la trace du tracker sélectionné
-                    if (selectedTrackerId) {
-                        trackerTraces[selectedTrackerId] = [];
-                        removeTrackerTrace(selectedTrackerId);
-                    }
-                } else {
-                    button.textContent = 'START';
-                    button.style.backgroundColor = 'green';
-                }
-            });
-
-            // Ajouter un événement pour nommer les polygones après leur création
-            map.on('draw.create', function(e) {
-                const feature = e.features[0];
-                const id = feature.id;
-                if (feature.geometry.type === 'Polygon') {
-                    const name = prompt('Entrez un nom pour ce polygone :');
-                    if (name) {
-                        draw.setFeatureProperty(id, 'name', name);
-                    }
-                }
-
-                // Mettre à jour les polygones et les étiquettes
-                updatePolygons();
-                updateLineStrings();
-            });
-
-            // Fonction pour ajouter des étiquettes aux polygones
-            function addPolygonLabels() {
-                // Supprimer l'ancienne couche et source
-                if (map.getLayer('polygon-labels')) {
-                    map.removeLayer('polygon-labels');
-                }
-                if (map.getSource('polygon-labels')) {
-                    map.removeSource('polygon-labels');
-                }
-
-                // Récupérer tous les polygones
-                const data = draw.getAll();
-                const polygons = data.features.filter(f => f.geometry.type === 'Polygon');
-
-                if (polygons.length > 0) {
-                    const labels = polygons.map(polygon => {
-                        const center = turf.centerOfMass(polygon).geometry.coordinates;
-                        return {
-                            'type': 'Feature',
-                            'geometry': {
-                                'type': 'Point',
-                                'coordinates': center
-                            },
-                            'properties': {
-                                'name': polygon.properties.name || 'Zone'
-                            }
-                        };
-                    });
-
-                    // Ajouter la source et la couche pour les étiquettes
-                    map.addSource('polygon-labels', {
-                        'type': 'geojson',
-                        'data': {
-                            'type': 'FeatureCollection',
-                            'features': labels
-                        }
-                    });
-
-                    map.addLayer({
-                        'id': 'polygon-labels',
-                        'type': 'symbol',
-                        'source': 'polygon-labels',
-                        'layout': {
-                            'text-field': ['get', 'name'],
-                            'text-font': ['Open Sans Bold'],
-                            'text-size': 12,
-                            'text-offset': [0, 0],
-                            'text-anchor': 'center'
-                        },
-                        'paint': {
-                            'text-color': '#ffffff',
-                            'text-halo-color': '#000000',
-                            'text-halo-width': 1
-                        }
-                    });
-                }
-            }
+            var trackerMarkers = {}; // Dictionnaire des marqueurs de trackers
+            var trackerTraces = {}; // Dictionnaire des traces de trackers
+            var trackersData = []; // Liste des trackers disponibles
+            var selectedTrackerId = null; // ID du tracker sélectionné
+            var isTraceActive = false; // Indique si l'enregistrement de la trace est actif
+            var lastPositions = {}; // Dernières positions des trackers pour l'interpolation
+            var lastUpdateTime = {}; // Temps de la dernière mise à jour pour chaque tracker
+            var isDriveMode = false; // Indique si le mode conduite est activé
+            var isSatellite = false; // Indique si la vue satellite est active
 
             // Fonction pour mettre à jour la source des polygones
             function updatePolygons() {
@@ -662,14 +287,7 @@
                         return feature.geometry.type === 'Polygon';
                     })
                 };
-                if (map.getSource('draw-polygons')) {
-                    map.getSource('draw-polygons').setData(polygons);
-                } else {
-                    map.addSource('draw-polygons', {
-                        type: 'geojson',
-                        data: polygons
-                    });
-                }
+                map.getSource('draw-polygons').setData(polygons);
                 addPolygonLabels(); // Mettre à jour les étiquettes
             }
 
@@ -682,162 +300,108 @@
                         return feature.geometry.type === 'LineString';
                     })
                 };
-                if (map.getSource('draw-lines')) {
-                    map.getSource('draw-lines').setData(lines);
-                } else {
-                    map.addSource('draw-lines', {
-                        type: 'geojson',
-                        data: lines
-                    });
-                }
-            }
-
-            // Fonction pour sauvegarder les dessins sur le serveur
-            async function saveDrawings() {
-                const data = draw.getAll();
-                try {
-                    const response = await fetch('/api/drawings', { // Chemin relatif
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(data)
-                    });
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    console.log('Dessins sauvegardés avec succès');
-                } catch (error) {
-                    console.error('Erreur lors de la sauvegarde des dessins:', error);
-                }
-            }
-
-            // Fonction pour charger les dessins depuis le serveur
-            async function loadDrawings() {
-                try {
-                    const response = await fetch('/api/drawings'); // Chemin relatif
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    const data = await response.json();
-                    draw.set(data);
-                    updatePolygons();
-                    updateLineStrings();
-                } catch (error) {
-                    console.error('Erreur lors du chargement des dessins:', error);
-                }
-            }
-
-            // Fonction pour mettre à jour la trace d'un tracker
-            function updateTrackerTrace(deviceId) {
-                const traceId = 'trace-' + deviceId;
-                const coordinates = trackerTraces[deviceId];
-
-                if (map.getSource(traceId)) {
-                    map.getSource(traceId).setData({
-                        'type': 'Feature',
-                        'geometry': {
-                            'type': 'LineString',
-                            'coordinates': coordinates
-                        }
-                    });
-                } else {
-                    map.addLayer({
-                        'id': traceId,
-                        'type': 'line',
-                        'source': {
-                            'type': 'geojson',
-                            'data': {
-                                'type': 'Feature',
-                                'geometry': {
-                                    'type': 'LineString',
-                                    'coordinates': coordinates
-                                }
-                            }
-                        },
-                        'layout': {
-                            'line-cap': 'round',
-                            'line-join': 'round'
-                        },
-                        'paint': {
-                            'line-color': '#00ff00',
-                            'line-width': 8
-                        }
-                    });
-                }
-            }
-
-            // Fonction pour supprimer la trace d'un tracker
-            function removeTrackerTrace(deviceId) {
-                const traceId = 'trace-' + deviceId;
-                if (map.getLayer(traceId)) {
-                    map.removeLayer(traceId);
-                }
-                if (map.getSource(traceId)) {
-                    map.removeSource(traceId);
-                }
-            }
-
-            // Fonction pour peupler la liste des dépôts (si applicable)
-            function populateDepotList() {
-                // Implémentez cette fonction selon vos besoins
-            }
-
-            // Fonction pour animer le marqueur entre deux positions
-            function animateMarker(deviceId, fromCoords, toCoords, duration) {
-                const marker = trackerMarkers[deviceId];
-                const start = performance.now();
-
-                function animate(time) {
-                    const elapsed = time - start;
-                    const t = Math.min(elapsed / duration, 1);
-                    const interpolatedCoords = [
-                        fromCoords[0] + (toCoords[0] - fromCoords[0]) * t,
-                        fromCoords[1] + (toCoords[1] - fromCoords[1]) * t
-                    ];
-                    marker.setLngLat(interpolatedCoords);
-
-                    if (t < 1) {
-                        requestAnimationFrame(animate);
-                    }
-                }
-                requestAnimationFrame(animate);
-            }
-
-            // Fonction pour afficher les trackers sur la carte
-            function displayTrackers(trackers) {
-                console.log('Trackers avant filtrage:', trackers); // Log des données brutes
-
-                // MODIFICATION: Filtrer les trackers dont le champ contact contient "Neige" (insensible à la casse)
-                const filteredTrackers = trackers.filter(track => 
-                    typeof track.contact === 'string' &&
-                    track.contact.toLowerCase().includes("neige")
-                );
-
-                console.log('Trackers après filtrage:', filteredTrackers); // Log des données filtrées
-
-                // Extraire les devices uniques
-                const devicesMap = {};
-                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
-                    if (track && !devicesMap[track.id]) { // Ajuster selon l'ID
-                        devicesMap[track.id] = track;
-                    }
-                });
-                trackersData = Object.values(devicesMap);
-
-                console.log('Devices uniques après filtrage:', trackersData); // Log des devices uniques
-
-                // Mettre à jour le menu déroulant
-                populateTrackerSelect();
-
-                // Mettre à jour la carte
-                updateMap();
+                map.getSource('draw-lines').setData(lines);
             }
 
             // Charger les données des trackers au chargement de la carte
             map.on('load', function() {
-                // Ajouter les sources et couches pour les polygones et lignes (si nécessaire)
-                // Ceci est déjà géré dans les fonctions updatePolygons et updateLineStrings
+                // Source pour les polygones
+                map.addSource('draw-polygons', {
+                    type: 'geojson',
+                    data: {
+                        type: 'FeatureCollection',
+                        features: []
+                    }
+                });
+
+                // Couche pour le remplissage des polygones
+                map.addLayer({
+                    id: 'draw-polygon-fill',
+                    type: 'fill',
+                    source: 'draw-polygons',
+                    layout: {},
+                    paint: {
+                        'fill-color': [
+                            'case',
+                            ['boolean', ['get', 'user_isCleared'], false],
+                            '#00ff00', // Vert si validé
+                            '#ff0000'  // Rouge si non validé
+                        ],
+                        'fill-opacity': 0.5
+                    }
+                });
+
+                // Couche pour les contours des polygones
+                map.addLayer({
+                    id: 'draw-polygon-stroke',
+                    type: 'line',
+                    source: 'draw-polygons',
+                    layout: {},
+                    paint: {
+                        'line-color': '#000000',
+                        'line-width': 2
+                    }
+                });
+
+                // Source pour les lignes
+                map.addSource('draw-lines', {
+                    type: 'geojson',
+                    data: {
+                        type: 'FeatureCollection',
+                        features: []
+                    }
+                });
+
+                // Couche pour les lignes
+                map.addLayer({
+                    id: 'draw-line',
+                    type: 'line',
+                    source: 'draw-lines',
+                    layout: {
+                        'line-cap': 'round',
+                        'line-join': 'round'
+                    },
+                    paint: {
+                        'line-color': '#0000ff', // Bleu
+                        'line-width': 4 // Plus épais
+                    }
+                });
+
+                // Couche pour les étiquettes des polygones
+                map.addLayer({
+                    'id': 'polygon-labels',
+                    'type': 'symbol',
+                    'source': 'polygon-labels',
+                    'layout': {
+                        'text-field': ['get', 'name'],
+                        'text-font': ['Open Sans Bold'],
+                        'text-size': 12,
+                        'text-offset': [0, 0],
+                        'text-anchor': 'center'
+                    },
+                    'paint': {
+                        'text-color': '#ffffff',
+                        'text-halo-color': '#000000',
+                        'text-halo-width': 1
+                    }
+                });
+
+                // Événements pour mettre à jour les sources lors des modifications
+                map.on('draw.create', function() {
+                    updatePolygons();
+                    updateLineStrings();
+                    saveDrawings();
+                });
+                map.on('draw.update', function() {
+                    updatePolygons();
+                    updateLineStrings();
+                    saveDrawings();
+                });
+                map.on('draw.delete', function() {
+                    updatePolygons();
+                    updateLineStrings();
+                    saveDrawings();
+                });
 
                 // Charger les dessins depuis le serveur
                 loadDrawings();
@@ -997,6 +561,422 @@
 
                 // Réappliquer les données dessinées
                 loadDrawings();
+            }
+
+            // Gestion du bouton pour centrer sur le tracker sélectionné
+            function centerOnTracker() {
+                if (selectedTrackerId && trackerMarkers[selectedTrackerId]) {
+                    const marker = trackerMarkers[selectedTrackerId];
+                    const coords = marker.getLngLat();
+                    const heading = marker.heading || 0;
+                    map.flyTo({
+                        center: coords,
+                        zoom: 19, // Augmenté pour plus de zoom
+                        pitch: 60,
+                        bearing: -heading, // Orientation dans le sens du déplacement
+                        essential: true
+                    });
+                } else {
+                    alert("Aucun tracker sélectionné ou position inconnue.");
+                }
+            }
+
+            document.getElementById('centerOnTracker').addEventListener('click', centerOnTracker);
+
+            // Gestion du bouton de bascule de vue 2D/3D
+            document.getElementById('toggleView').addEventListener('click', function() {
+                const currentPitch = map.getPitch();
+                if (currentPitch === 0) {
+                    // Passer en vue 3D
+                    map.easeTo({ pitch: 60, duration: 1000 });
+                    map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+                } else {
+                    // Passer en vue 2D
+                    map.easeTo({ pitch: 0, bearing: 0, duration: 1000 });
+                    map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+                }
+            });
+
+            // Gestion du nouveau bouton "Mode Conduite"
+            document.getElementById('driveModeButton').addEventListener('click', function() {
+                isDriveMode = !isDriveMode;
+                const button = document.getElementById('driveModeButton');
+                if (isDriveMode) {
+                    button.style.backgroundColor = '#007BFF';
+                    centerOnTracker();
+                } else {
+                    button.style.backgroundColor = 'white';
+                }
+            });
+
+            // Gestion du bouton "Valider la zone"
+            document.getElementById('validateZone').addEventListener('click', function() {
+                const selectedFeatures = draw.getSelected();
+                if (selectedFeatures.features.length > 0) {
+                    const selectedPolygonId = selectedFeatures.features[0].id;
+                    const feature = draw.get(selectedPolygonId);
+                    const isCleared = feature.properties.user_isCleared || false;
+                    draw.setFeatureProperty(selectedPolygonId, 'user_isCleared', !isCleared);
+
+                    // Mettre à jour les polygones pour refléter les changements
+                    updatePolygons();
+                    saveDrawings();
+                } else {
+                    alert('Aucun polygone sélectionné.');
+                }
+            });
+
+            // Gestion du bouton START/STOP pour la trace
+            document.getElementById('toggleTrace').addEventListener('click', function() {
+                isTraceActive = !isTraceActive;
+                const button = document.getElementById('toggleTrace');
+                if (isTraceActive) {
+                    button.textContent = 'STOP';
+                    button.style.backgroundColor = 'red';
+                    // Réinitialiser la trace du tracker sélectionné
+                    if (selectedTrackerId) {
+                        trackerTraces[selectedTrackerId] = [];
+                        removeTrackerTrace(selectedTrackerId);
+                    }
+                } else {
+                    button.textContent = 'START';
+                    button.style.backgroundColor = 'green';
+                }
+            });
+
+            // Ajouter un événement pour nommer les polygones après leur création
+            map.on('draw.create', function(e) {
+                const feature = e.features[0];
+                const id = feature.id;
+                if (feature.geometry.type === 'Polygon') {
+                    const name = prompt('Entrez un nom pour ce polygone :');
+                    if (name) {
+                        draw.setFeatureProperty(id, 'name', name);
+                    }
+                }
+
+                // Mettre à jour les polygones et les étiquettes
+                updatePolygons();
+                updateLineStrings();
+            });
+
+            // Fonction pour ajouter des étiquettes aux polygones
+            function addPolygonLabels() {
+                // Supprimer l'ancienne couche et source
+                if (map.getLayer('polygon-labels')) {
+                    map.removeLayer('polygon-labels');
+                }
+                if (map.getSource('polygon-labels')) {
+                    map.removeSource('polygon-labels');
+                }
+
+                // Récupérer tous les polygones
+                const data = draw.getAll();
+                const polygons = data.features.filter(f => f.geometry.type === 'Polygon');
+
+                if (polygons.length > 0) {
+                    const labels = polygons.map(polygon => {
+                        const center = turf.centerOfMass(polygon).geometry.coordinates;
+                        return {
+                            'type': 'Feature',
+                            'geometry': {
+                                'type': 'Point',
+                                'coordinates': center
+                            },
+                            'properties': {
+                                'name': polygon.properties.name || 'Zone'
+                            }
+                        };
+                    });
+
+                    // Ajouter la source et la couche pour les étiquettes
+                    map.addSource('polygon-labels', {
+                        'type': 'geojson',
+                        'data': {
+                            'type': 'FeatureCollection',
+                            'features': labels
+                        }
+                    });
+
+                    map.addLayer({
+                        'id': 'polygon-labels',
+                        'type': 'symbol',
+                        'source': 'polygon-labels',
+                        'layout': {
+                            'text-field': ['get', 'name'],
+                            'text-font': ['Open Sans Bold'],
+                            'text-size': 12,
+                            'text-offset': [0, 0],
+                            'text-anchor': 'center'
+                        },
+                        'paint': {
+                            'text-color': '#ffffff',
+                            'text-halo-color': '#000000',
+                            'text-halo-width': 1
+                        }
+                    });
+                }
+            }
+
+            // Afficher les bâtiments en 3D lorsqu'on passe en vue 3D
+            map.on('pitch', function() {
+                const currentPitch = map.getPitch();
+                if (currentPitch > 0) {
+                    map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+                } else {
+                    map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+                }
+            });
+
+            // Gestion du changement de tracker sélectionné
+            document.getElementById('trackerSelect').addEventListener('change', function() {
+                selectedTrackerId = parseInt(this.value);
+                // Réinitialiser la trace du tracker sélectionné
+                if (isTraceActive && selectedTrackerId) {
+                    trackerTraces[selectedTrackerId] = [];
+                    removeTrackerTrace(selectedTrackerId);
+                }
+            });
+
+            // Fonction pour récupérer les données des trackers depuis votre serveur
+            async function getTrackersData() {
+                try {
+                    const response = await fetch('/getTrackers'); // Chemin relatif
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    const trackers = await response.json();
+                    displayTrackers(trackers);
+                } catch (error) {
+                    console.error('Erreur lors de la récupération des données des trackers:', error);
+                }
+            }
+
+            // Fonction pour afficher les trackers sur la carte
+            function displayTrackers(trackers) {
+                // *** Début de la modification pour filtrer les trackers avec "neige" dans le champ contact ***
+                const filteredTrackers = trackers.filter(track => 
+                    track.device &&
+                    track.device.contact &&
+                    track.device.contact.toLowerCase().includes('neige')
+                );
+                // *** Fin de la modification ***
+
+                // Extraire les devices uniques
+                const devicesMap = {};
+                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
+                    if (track.device && !devicesMap[track.device.id]) {
+                        devicesMap[track.device.id] = track.device;
+                    }
+                });
+                trackersData = Object.values(devicesMap);
+
+                // Mettre à jour le menu déroulant
+                updateTrackerSelect();
+
+                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
+                    const device = track.device;
+                    if (device) {
+                        // Assurez-vous que track contient les champs longitude et latitude
+                        // Si ce n'est pas le cas, ajustez en fonction de votre structure de données
+                        const coords = [track.longitude, track.latitude];
+                        if (!coords || coords.length !== 2) {
+                            console.warn(`Coordonnées invalides pour le tracker ID: ${device.id}`);
+                            return;
+                        }
+
+                        const deviceId = device.id;
+
+                        // Enregistrer le temps de mise à jour
+                        const now = Date.now();
+                        lastUpdateTime[deviceId] = now;
+
+                        // Initialiser la position précédente
+                        if (!lastPositions[deviceId]) {
+                            lastPositions[deviceId] = coords;
+                        }
+
+                        // Mettre à jour le marqueur du tracker avec interpolation
+                        if (trackerMarkers[deviceId]) {
+                            animateMarker(deviceId, lastPositions[deviceId], coords, 1000);
+                        } else {
+                            const el = document.createElement('div');
+                            el.className = 'custom-marker';
+
+                            const label = document.createElement('div');
+                            label.className = 'marker-label';
+                            label.textContent = device.name;
+                            el.appendChild(label);
+
+                            const marker = new mapboxgl.Marker(el)
+                                .setLngLat(coords)
+                                .addTo(map);
+
+                            trackerMarkers[deviceId] = marker;
+                        }
+
+                        // Mettre à jour la position précédente
+                        lastPositions[deviceId] = coords;
+
+                        // Enregistrer la position pour la trace si active
+                        if (isTraceActive && selectedTrackerId === deviceId) {
+                            if (!trackerTraces[deviceId]) {
+                                trackerTraces[deviceId] = [];
+                            }
+
+                            // Vérifier la distance avec le dernier point
+                            const lastTraceCoords = trackerTraces[deviceId][trackerTraces[deviceId].length - 1];
+                            const distance = lastTraceCoords ? turf.distance(turf.point(lastTraceCoords), turf.point(coords)) * 1000 : Infinity;
+
+                            // Vérifier le temps écoulé depuis le dernier point
+                            const timeSinceLastPoint = lastTraceCoords ? now - lastUpdateTime[deviceId] : Infinity;
+
+                            if (distance > 10 || timeSinceLastPoint > 15 * 60 * 1000) {
+                                trackerTraces[deviceId].push(coords);
+                                // Mettre à jour la trace du tracker
+                                updateTrackerTrace(deviceId);
+                            }
+                        }
+
+                        // Enregistrer le cap pour l'orientation
+                        trackerMarkers[deviceId].heading = track.course || 0;
+
+                        // Si le mode conduite est activé et que le tracker est sélectionné
+                        if (isDriveMode && selectedTrackerId === deviceId) {
+                            map.easeTo({
+                                center: coords,
+                                bearing: trackerMarkers[deviceId].heading,
+                                pitch: 60,
+                                zoom: 19,
+                                duration: 1000,
+                                essential: true
+                            });
+                        }
+                    }
+                });
+            }
+
+            // Fonction pour animer le marqueur entre deux positions
+            function animateMarker(deviceId, fromCoords, toCoords, duration) {
+                const marker = trackerMarkers[deviceId];
+                const start = performance.now();
+
+                function animate(time) {
+                    const elapsed = time - start;
+                    const t = Math.min(elapsed / duration, 1);
+                    const interpolatedCoords = [
+                        fromCoords[0] + (toCoords[0] - fromCoords[0]) * t,
+                        fromCoords[1] + (toCoords[1] - fromCoords[1]) * t
+                    ];
+                    marker.setLngLat(interpolatedCoords);
+
+                    if (t < 1) {
+                        requestAnimationFrame(animate);
+                    }
+                }
+                requestAnimationFrame(animate);
+            }
+
+            // Fonction pour mettre à jour la trace d'un tracker
+            function updateTrackerTrace(deviceId) {
+                const traceId = 'trace-' + deviceId;
+                const coordinates = trackerTraces[deviceId];
+
+                if (map.getSource(traceId)) {
+                    map.getSource(traceId).setData({
+                        'type': 'Feature',
+                        'geometry': {
+                            'type': 'LineString',
+                            'coordinates': coordinates
+                        }
+                    });
+                } else {
+                    map.addLayer({
+                        'id': traceId,
+                        'type': 'line',
+                        'source': {
+                            'type': 'geojson',
+                            'data': {
+                                'type': 'Feature',
+                                'geometry': {
+                                    'type': 'LineString',
+                                    'coordinates': coordinates
+                                }
+                            }
+                        },
+                        'layout': {
+                            'line-cap': 'round',
+                            'line-join': 'round'
+                        },
+                        'paint': {
+                            'line-color': '#00ff00',
+                            'line-width': 8
+                        }
+                    });
+                }
+            }
+
+            // Fonction pour supprimer la trace d'un tracker
+            function removeTrackerTrace(deviceId) {
+                const traceId = 'trace-' + deviceId;
+                if (map.getLayer(traceId)) {
+                    map.removeLayer(traceId);
+                }
+                if (map.getSource(traceId)) {
+                    map.removeSource(traceId);
+                }
+            }
+
+            // Fonction pour mettre à jour le menu déroulant des trackers
+            function updateTrackerSelect() {
+                const select = document.getElementById('trackerSelect');
+                // Vider le menu déroulant
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                trackersData.forEach(tracker => {
+                    const option = document.createElement('option');
+                    option.value = tracker.id;
+                    option.textContent = tracker.name;
+                    select.appendChild(option);
+                });
+            }
+
+            // Fonction pour sauvegarder les dessins sur le serveur
+            async function saveDrawings() {
+                const data = draw.getAll();
+                try {
+                    const response = await fetch('/api/drawings', { // Chemin relatif
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    console.log('Dessins sauvegardés avec succès');
+                } catch (error) {
+                    console.error('Erreur lors de la sauvegarde des dessins:', error);
+                }
+            }
+
+            // Fonction pour charger les dessins depuis le serveur
+            async function loadDrawings() {
+                try {
+                    const response = await fetch('/api/drawings'); // Chemin relatif
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    const data = await response.json();
+                    draw.set(data);
+                    updatePolygons();
+                    updateLineStrings();
+                } catch (error) {
+                    console.error('Erreur lors du chargement des dessins:', error);
+                }
             }
 
             // Gestion du bouton Satellite/Normal pour alterner les vues

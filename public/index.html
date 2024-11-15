@@ -22,7 +22,7 @@
             bottom: 0;
             width: 100%;
             height: 100%;
-            display: hidden; /* Masqué par défaut, affiché après connexion */
+            display: none; /* Masqué par défaut, affiché après connexion */
         }
         /* Styles pour les boutons */
         #toggleView, #centerOnTracker, #validateZone, #trackerSelect, #toggleTrace, #driveModeButton, #satelliteToggleButton {
@@ -754,10 +754,15 @@
 
             // Fonction pour afficher les trackers sur la carte
             function displayTrackers(trackers) {
+                // Filtrer les trackers dont le champ contact contient "Neige"
+                const filteredTrackers = trackers.filter(track => {
+                    return track.device && track.device.contact && track.device.contact.includes("Neige");
+                });
+
                 // Extraire les devices uniques
                 const devicesMap = {};
-                trackers.forEach(track => {
-                    if (track.device && track.device.model === "Neige" && !devicesMap[track.device.id]) {
+                filteredTrackers.forEach(track => {
+                    if (track.device && !devicesMap[track.device.id]) {
                         devicesMap[track.device.id] = track.device;
                     }
                 });
@@ -766,9 +771,9 @@
                 // Mettre à jour le menu déroulant
                 updateTrackerSelect();
 
-                trackers.forEach(track => {
+                filteredTrackers.forEach(track => {
                     const device = track.device;
-                    if (device && device.model === "Neige") {
+                    if (device) {
                         const coords = [track.longitude, track.latitude];
                         const deviceId = device.id;
 
@@ -839,6 +844,11 @@
                         }
                     }
                 });
+
+                // Optionnel : Afficher un message si aucun tracker ne correspond
+                if (filteredTrackers.length === 0) {
+                    alert('Aucun tracker avec le contact "Neige" trouvé.');
+                }
             }
 
             // Fonction pour animer le marqueur entre deux positions

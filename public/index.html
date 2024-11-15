@@ -754,10 +754,10 @@
 
             // Fonction pour afficher les trackers sur la carte
             function displayTrackers(trackers) {
-                // Extraire les devices uniques et en ligne
+                // Extraire les devices uniques
                 const devicesMap = {};
                 trackers.forEach(track => {
-                    if (track.device && track.online && !devicesMap[track.device.id]) { // Filtrer les trackers en ligne
+                    if (track.device && !devicesMap[track.device.id]) {
                         devicesMap[track.device.id] = track.device;
                     }
                 });
@@ -767,9 +767,10 @@
                 updateTrackerSelect();
 
                 trackers.forEach(track => {
-                    if (track.online && track.device) { // Traiter uniquement les trackers en ligne
+                    const device = track.device;
+                    if (device) {
                         const coords = [track.longitude, track.latitude];
-                        const deviceId = track.device.id;
+                        const deviceId = device.id;
 
                         // Enregistrer le temps de mise à jour
                         const now = Date.now();
@@ -838,15 +839,6 @@
                         }
                     }
                 });
-
-                // Supprimer les marqueurs des trackers qui ne sont plus en ligne
-                for (const deviceId in trackerMarkers) {
-                    if (!devicesMap[deviceId]) {
-                        trackerMarkers[deviceId].remove();
-                        delete trackerMarkers[deviceId];
-                        delete trackerTraces[deviceId];
-                    }
-                }
             }
 
             // Fonction pour animer le marqueur entre deux positions

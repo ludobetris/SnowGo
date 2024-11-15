@@ -22,13 +22,16 @@
             width: 100%;
         }
         /* Styles pour les boutons */
-        #toggleView, #centerOnTracker, #validateZone, #trackerSelect, #toggleTrace, #driveModeButton {
+        #toggleView, #centerOnTracker, #validateZone, #trackerSelect, #toggleTrace, #driveModeButton, #satelliteToggleButton {
             position: absolute;
             z-index: 1;
             padding: 10px;
             background: white;
             border: none;
             cursor: pointer;
+            font-size: 14px;
+            border-radius: 5px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
         }
         #toggleView {
             top: 10px;
@@ -41,6 +44,8 @@
         #trackerSelect {
             top: 10px;
             left: 210px;
+            padding: 8px;
+            border-radius: 5px;
         }
         /* Nouveau bouton driveModeButton */
         #driveModeButton {
@@ -56,6 +61,20 @@
             background-position: center;
             box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
         }
+        /* Nouveau bouton satelliteToggleButton */
+        #satelliteToggleButton {
+            bottom: 100px; /* Positionné au-dessus des autres boutons */
+            left: 10px;
+            width: 120px;
+            height: 50px;
+            background-color: #f0f0f0;
+            color: #333;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
         /* Style pour les boutons START et Valider la zone */
         #validateZone, #toggleTrace {
             background-color: green;
@@ -112,8 +131,10 @@
     </select>
     <!-- Nouveau bouton driveModeButton -->
     <button id="driveModeButton"></button>
-    <button id="validateZone">Valider zone</button>
+    <button id="validateZone">Valider la zone</button>
     <button id="toggleTrace">START</button>
+    <!-- Nouveau bouton satelliteToggleButton -->
+    <button id="satelliteToggleButton">Satellite</button>
     <!-- Inclure les scripts de Mapbox GL JS, Mapbox GL Draw et Turf.js -->
     <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
     <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.2/mapbox-gl-draw.js"></script>
@@ -156,6 +177,7 @@
         var lastPositions = {}; // Dernières positions des trackers pour l'interpolation
         var lastUpdateTime = {}; // Temps de la dernière mise à jour pour chaque tracker
         var isDriveMode = false; // Indique si le mode conduite est activé
+        var isSatellite = false; // Indique si la vue satellite est active
 
         // Fonction pour mettre à jour la source des polygones
         function updatePolygons() {
@@ -318,6 +340,130 @@
             });
         });
 
+        // Fonction pour réajouter les couches et sources personnalisées après un changement de style
+        function reAddCustomLayers() {
+            // Réajouter les sources et couches personnalisées
+
+            // Source pour les polygones
+            if (!map.getSource('draw-polygons')) {
+                map.addSource('draw-polygons', {
+                    type: 'geojson',
+                    data: {
+                        type: 'FeatureCollection',
+                        features: []
+                    }
+                });
+
+                // Couche pour le remplissage des polygones
+                map.addLayer({
+                    id: 'draw-polygon-fill',
+                    type: 'fill',
+                    source: 'draw-polygons',
+                    layout: {},
+                    paint: {
+                        'fill-color': [
+                            'case',
+                            ['boolean', ['get', 'user_isCleared'], false],
+                            '#00ff00', // Vert si validé
+                            '#ff0000'  // Rouge si non validé
+                        ],
+                        'fill-opacity': 0.5
+                    }
+                });
+
+                // Couche pour les contours des polygones
+                map.addLayer({
+                    id: 'draw-polygon-stroke',
+                    type: 'line',
+                    source: 'draw-polygons',
+                    layout: {},
+                    paint: {
+                        'line-color': '#000000',
+                        'line-width': 2
+                    }
+                });
+            }
+
+            // Source pour les lignes
+            if (!map.getSource('draw-lines')) {
+                map.addSource('draw-lines', {
+                    type: 'geojson',
+                    data: {
+                        type: 'FeatureCollection',
+                        features: []
+                    }
+                });
+
+                // Couche pour les lignes
+                map.addLayer({
+                    id: 'draw-line',
+                    type: 'line',
+                    source: 'draw-lines',
+                    layout: {
+                        'line-cap': 'round',
+                        'line-join': 'round'
+                    },
+                    paint: {
+                        'line-color': '#0000ff', // Bleu
+                        'line-width': 4 // Plus épais
+                    }
+                });
+            }
+
+            // Couche pour les étiquettes des polygones
+            if (!map.getLayer('polygon-labels')) {
+                map.addLayer({
+                    'id': 'polygon-labels',
+                    'type': 'symbol',
+                    'source': 'polygon-labels',
+                    'layout': {
+                        'text-field': ['get', 'name'],
+                        'text-font': ['Open Sans Bold'],
+                        'text-size': 12,
+                        'text-offset': [0, 0],
+                        'text-anchor': 'center'
+                    },
+                    'paint': {
+                        'text-color': '#ffffff',
+                        'text-halo-color': '#000000',
+                        'text-halo-width': 1
+                    }
+                });
+            }
+
+            // Couche pour les bâtiments 3D
+            if (!map.getLayer('3d-buildings')) {
+                map.addLayer({
+                    'id': '3d-buildings',
+                    'source': 'composite',
+                    'source-layer': 'building',
+                    'filter': ['==', 'extrude', 'true'],
+                    'type': 'fill-extrusion',
+                    'minzoom': 15,
+                    'paint': {
+                        'fill-extrusion-color': '#aaa',
+                        'fill-extrusion-height': [
+                            'interpolate', ['linear'], ['zoom'],
+                            15, 0,
+                            15.05, ['get', 'height']
+                        ],
+                        'fill-extrusion-base': [
+                            'interpolate', ['linear'], ['zoom'],
+                            15, 0,
+                            15.05, ['get', 'min_height']
+                        ],
+                        'fill-extrusion-opacity': 0.6
+                    },
+                    'layout': {
+                        'visibility': 'none' // Masquer par défaut
+                    }
+                });
+            }
+
+            // Réappliquer les données dessinées
+            loadDrawings();
+        }
+
         // Gestion du bouton pour centrer sur le tracker sélectionné
         function centerOnTracker() {
             if (selectedTrackerId && trackerMarkers[selectedTrackerId]) {
@@ -376,7 +522,7 @@
                 updatePolygons();
                 saveDrawings();
             } else {
-                alert('Aucune zone sélectionnée.');
+                alert('Aucun polygone sélectionné.');
             }
         });
 
@@ -717,6 +863,24 @@
             }
         }
 
+        // Gestion du bouton Satellite/Normal pour alterner les vues
+        document.getElementById('satelliteToggleButton').addEventListener('click', function() {
+            if (!isSatellite) {
+                // Passer en vue satellite
+                map.setStyle('mapbox://styles/mapbox/satellite-streets-v12');
+                this.textContent = 'Normal';
+            } else {
+                // Revenir à la vue normale
+                map.setStyle('mapbox://styles/mapbox/streets-v12');
+                this.textContent = 'Satellite';
+            }
+            isSatellite = !isSatellite;
+
+            // Réajouter les couches et sources personnalisées après le changement de style
+            map.once('style.load', function() {
+                reAddCustomLayers();
+            });
+        });
     </script>
 </body>
 </html>

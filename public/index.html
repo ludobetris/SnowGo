@@ -22,7 +22,7 @@
             bottom: 0;
             width: 100%;
             height: 100%;
-            display: none; /* Masqué par défaut, affiché après connexion */
+            display: hidden; /* Masqué par défaut, affiché après connexion */
         }
         /* Styles pour les boutons */
         #toggleView, #centerOnTracker, #validateZone, #trackerSelect, #toggleTrace, #driveModeButton, #satelliteToggleButton {
@@ -200,7 +200,6 @@
     <script>
         // Variables pour la gestion des accès
         let userRole = null; // 'admin' ou 'user'
-        let draw; // Déclaration de MapboxDraw globale pour accéder dans restrictUserAccess
 
         // Fonction de gestion du login
         document.getElementById('loginForm').addEventListener('submit', function(e) {
@@ -226,11 +225,10 @@
             // Désactiver le bouton Valider la zone
             document.getElementById('validateZone').style.display = 'none';
             // Désactiver les contrôles de dessin
-            if (draw) {
-                draw.deleteAll();
-                draw.changeMode('simple_select');
-            }
+            draw.deleteAll();
+            draw.changeMode('simple_select');
             // Masquer les options de dessin si présentes
+            // Si vous avez des boutons spécifiques pour créer des lignes et polygones, vous devriez les cacher ici
             // Exemple :
             // document.getElementById('createPolygonButton').style.display = 'none';
             // document.getElementById('createLineButton').style.display = 'none';
@@ -258,7 +256,7 @@
             map.addControl(new mapboxgl.NavigationControl());
 
             // Initialiser Mapbox Draw sans modifier les styles par défaut
-            draw = new MapboxDraw({
+            var draw = new MapboxDraw({
                 displayControlsDefault: false,
                 controls: {
                     polygon: userRole === 'admin' ? true : false,
@@ -366,15 +364,6 @@
                     paint: {
                         'line-color': '#0000ff', // Bleu
                         'line-width': 4 // Plus épais
-                    }
-                });
-
-                // Source pour les étiquettes des polygones (initialisée avec vide)
-                map.addSource('polygon-labels', {
-                    'type': 'geojson',
-                    'data': {
-                        'type': 'FeatureCollection',
-                        'features': []
                     }
                 });
 
@@ -520,17 +509,8 @@
                     });
                 }
 
-                // Source pour les étiquettes des polygones (initialisée avec vide si non existante)
-                if (!map.getSource('polygon-labels')) {
-                    map.addSource('polygon-labels', {
-                        'type': 'geojson',
-                        'data': {
-                            'type': 'FeatureCollection',
-                            'features': []
-                        }
-                    });
-
-                    // Couche pour les étiquettes des polygones
+                // Couche pour les étiquettes des polygones
+                if (!map.getLayer('polygon-labels')) {
                     map.addLayer({
                         'id': 'polygon-labels',
                         'type': 'symbol',
@@ -682,6 +662,14 @@
 
             // Fonction pour ajouter des étiquettes aux polygones
             function addPolygonLabels() {
+                // Supprimer l'ancienne couche et source
+                if (map.getLayer('polygon-labels')) {
+                    map.removeLayer('polygon-labels');
+                }
+                if (map.getSource('polygon-labels')) {
+                    map.removeSource('polygon-labels');
+                }
+
                 // Récupérer tous les polygones
                 const data = draw.getAll();
                 const polygons = data.features.filter(f => f.geometry.type === 'Polygon');
@@ -701,16 +689,31 @@
                         };
                     });
 
-                    // Mettre à jour la source 'polygon-labels' avec les nouvelles étiquettes
-                    map.getSource('polygon-labels').setData({
-                        'type': 'FeatureCollection',
-                        'features': labels
+                    // Ajouter la source et la couche pour les étiquettes
+                    map.addSource('polygon-labels', {
+                        'type': 'geojson',
+                        'data': {
+                            'type': 'FeatureCollection',
+                            'features': labels
+                        }
                     });
-                } else {
-                    // Si aucun polygone, mettre une collection vide
-                    map.getSource('polygon-labels').setData({
-                        'type': 'FeatureCollection',
-                        'features': []
+
+                    map.addLayer({
+                        'id': 'polygon-labels',
+                        'type': 'symbol',
+                        'source': 'polygon-labels',
+                        'layout': {
+                            'text-field': ['get', 'name'],
+                            'text-font': ['Open Sans Bold'],
+                            'text-size': 12,
+                            'text-offset': [0, 0],
+                            'text-anchor': 'center'
+                        },
+                        'paint': {
+                            'text-color': '#ffffff',
+                            'text-halo-color': '#000000',
+                            'text-halo-width': 1
+                        }
                     });
                 }
             }
@@ -751,34 +754,26 @@
 
             // Fonction pour afficher les trackers sur la carte
             function displayTrackers(trackers) {
-                // Filtrer les trackers dont le champ contact contient "Neige"
+                // MODIFICATION: Filtrer les trackers dont le champ contact contient "Neige"
                 const filteredTrackers = trackers.filter(track => 
-                    track.device.contact && track.device.contact.includes("Neige")
+                    track.device && 
+                    track.device.contact && 
+                    track.device.contact.includes("Neige")
                 );
 
-                // Supprimer les marqueurs des trackers qui ne sont plus dans la liste filtrée
-                Object.keys(trackerMarkers).forEach(deviceId => {
-                    if (!filteredTrackers.some(track => track.device.id === parseInt(deviceId))) {
-                        trackerMarkers[deviceId].remove();
-                        delete trackerMarkers[deviceId];
-                        removeTrackerTrace(parseInt(deviceId));
-                    }
-                });
-
-                // Extraire les devices uniques à partir des trackers filtrés
+                // Extraire les devices uniques
                 const devicesMap = {};
-                filteredTrackers.forEach(track => {
+                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
                     if (track.device && !devicesMap[track.device.id]) {
                         devicesMap[track.device.id] = track.device;
                     }
                 });
                 trackersData = Object.values(devicesMap);
 
-                // Mettre à jour le menu déroulant avec les trackers filtrés
+                // Mettre à jour le menu déroulant
                 updateTrackerSelect();
 
-                // Itérer sur les trackers filtrés pour les afficher sur la carte
-                filteredTrackers.forEach(track => {
+                filteredTrackers.forEach(track => { // Utiliser filteredTrackers au lieu de trackers
                     const device = track.device;
                     if (device) {
                         const coords = [track.longitude, track.latitude];
@@ -788,12 +783,12 @@
                         const now = Date.now();
                         lastUpdateTime[deviceId] = now;
 
-                        // Initialiser la position précédente si nécessaire
+                        // Initialiser la position précédente
                         if (!lastPositions[deviceId]) {
                             lastPositions[deviceId] = coords;
                         }
 
-                        // Mettre à jour ou créer le marqueur du tracker
+                        // Mettre à jour le marqueur du tracker avec interpolation
                         if (trackerMarkers[deviceId]) {
                             animateMarker(deviceId, lastPositions[deviceId], coords, 1000);
                         } else {
